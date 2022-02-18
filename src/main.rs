@@ -44,22 +44,23 @@ fn compute_closure<'a>(
     };
     eprintln!("Computing closure for {}", path);
     let mut closure: HashSet<String> = HashSet::new();
-    closure.insert(path.clone());
+    closure.insert(strip_name(&path));
     for reference in pathinfo.references.iter() {
         if *reference == path {
             continue;
         }
-        if let Some(reference_closure) = get_path(&state.results, reference) {
+        let reference = strip_name(reference);
+        if let Some(reference_closure) = get_path(&state.results, &reference) {
             for path in reference_closure {
-                closure.insert(path.clone());
+                closure.insert(strip_name(path));
             }
         } else {
             for path in compute_closure(&mut state, reference.clone()) {
-                closure.insert(path.clone());
+                closure.insert(strip_name(path));
             }
         }
     }
-    state.results.insert(path.clone(), closure);
+    state.results.insert(strip_name(&path), closure);
     get_path(&state.results, &path).unwrap()
 }
 
@@ -74,7 +75,7 @@ fn main() -> Result<(), serde_json::Error> {
     eprintln!("parsed info for {} paths", pathinfos.len());
     let paths: Vec<String> = pathinfos
         .iter()
-        .map(|pathinfo| pathinfo.path.clone())
+        .map(|pathinfo| strip_name(&pathinfo.path))
         .collect();
 
     let mut closure_computation_state = ClosureComputationState {
