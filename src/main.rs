@@ -20,48 +20,32 @@ struct ClosureComputationState<'a> {
     results: HashMap<String, HashSet<String>>,
 }
 
-fn strip_name(path: &String) -> String {
-    let mut stripped = path.clone();
-    stripped.truncate("/nix/store/00000000000000000000000000000000".len());
-    stripped
-}
-
-fn get_path<'a, T>(map: &'a HashMap<String, T>, path: &String) -> Option<&'a T> {
-    map.get(path).or_else(|| map.get(&strip_name(path)))
-}
-
 fn compute_closure<'a>(
     mut state: &'a mut ClosureComputationState,
     path: String,
 ) -> &'a HashSet<String> {
-    let pathinfo = match state
-        .todo
-        .remove(&path)
-        .or_else(|| state.todo.remove(&strip_name(&path)))
-    {
+    let pathinfo = match state.todo.remove(&path) {
         Some(info) => info,
         None => panic!("Could not find info for {}", path),
     };
-    eprintln!("Computing closure for {}", path);
     let mut closure: HashSet<String> = HashSet::new();
-    closure.insert(strip_name(&path));
+    closure.insert(path.clone());
     for reference in pathinfo.references.iter() {
         if *reference == path {
             continue;
         }
-        let reference = strip_name(reference);
-        if let Some(reference_closure) = get_path(&state.results, &reference) {
+        if let Some(reference_closure) = state.results.get(reference) {
             for path in reference_closure {
-                closure.insert(strip_name(path));
+                closure.insert(path.clone());
             }
         } else {
             for path in compute_closure(&mut state, reference.clone()) {
-                closure.insert(strip_name(path));
+                closure.insert(path.clone());
             }
         }
     }
-    state.results.insert(strip_name(&path), closure);
-    get_path(&state.results, &path).unwrap()
+    state.results.insert(path.clone(), closure);
+    state.results.get(&path).unwrap()
 }
 
 fn main() -> Result<(), serde_json::Error> {
@@ -75,7 +59,7 @@ fn main() -> Result<(), serde_json::Error> {
     eprintln!("parsed info for {} paths", pathinfos.len());
     let paths: Vec<String> = pathinfos
         .iter()
-        .map(|pathinfo| strip_name(&pathinfo.path))
+        .map(|pathinfo| pathinfo.path.clone())
         .collect();
 
     let mut closure_computation_state = ClosureComputationState {
@@ -103,7 +87,7 @@ fn main() -> Result<(), serde_json::Error> {
 
     let mut paths_to_delete: HashSet<String> = paths.iter().cloned().collect();
     for root in roots_to_keep {
-        for path in get_path(&closures, &root).unwrap() {
+        for path in closures.get(&root).unwrap() {
             paths_to_delete.remove(path);
         }
     }
