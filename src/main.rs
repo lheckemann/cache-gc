@@ -15,49 +15,52 @@ pub struct PathInfo {
     pub registrationTime: u64,
 }
 
-enum Closure {
-    Missing,
-    Paths(HashSet<String>),
-}
-
 struct ClosureComputationState<'a> {
     todo: HashMap<String, &'a PathInfo>,
-    results: HashMap<String, Closure>,
+    results: HashMap<String, HashSet<String>>,
 }
 
-fn compute_closure<'a>(mut state: &'a mut ClosureComputationState, path: String) -> &'a Closure {
-    let pathinfo = if let Some(info) = state.todo.remove(&path) {
-        info
-    } else {
-        eprintln!("Missing path: {}", path);
-        state.results.insert(path.clone(), Closure::Missing);
-        return state.results.get(&path).unwrap();
+fn strip_name(path: &String) -> String {
+    let mut stripped = path.clone();
+    stripped.truncate("/nix/store/00000000000000000000000000000000".len());
+    stripped
+}
+
+fn get_path<'a, T>(map: &'a HashMap<String, T>, path: &String) -> Option<&'a T> {
+    map.get(path).or_else(|| map.get(&strip_name(path)))
+}
+
+fn compute_closure<'a>(
+    mut state: &'a mut ClosureComputationState,
+    path: String,
+) -> &'a HashSet<String> {
+    let pathinfo = match state
+        .todo
+        .remove(&path)
+        .or_else(|| state.todo.remove(&strip_name(&path)))
+    {
+        Some(info) => info,
+        None => panic!("Could not find info for {}", path),
     };
+    eprintln!("Computing closure for {}", path);
     let mut closure: HashSet<String> = HashSet::new();
     closure.insert(path.clone());
     for reference in pathinfo.references.iter() {
         if *reference == path {
             continue;
         }
-        match state.results.get(reference) {
-            Some(Closure::Paths(reference_closure)) => {
-                for path in reference_closure {
-                    closure.insert(path.clone());
-                }
+        if let Some(reference_closure) = get_path(&state.results, reference) {
+            for path in reference_closure {
+                closure.insert(path.clone());
             }
-            Some(Closure::Missing) => continue,
-            None => match compute_closure(&mut state, reference.clone()) {
-                Closure::Missing => continue,
-                Closure::Paths(paths) => {
-                    for path in paths {
-                        closure.insert(path.clone());
-                    }
-                }
-            },
+        } else {
+            for path in compute_closure(&mut state, reference.clone()) {
+                closure.insert(path.clone());
+            }
         }
     }
-    state.results.insert(path.clone(), Closure::Paths(closure));
-    state.results.get(&path).unwrap()
+    state.results.insert(path.clone(), closure);
+    get_path(&state.results, &path).unwrap()
 }
 
 fn main() -> Result<(), serde_json::Error> {
@@ -99,13 +102,8 @@ fn main() -> Result<(), serde_json::Error> {
 
     let mut paths_to_delete: HashSet<String> = paths.iter().cloned().collect();
     for root in roots_to_keep {
-        match closures.get(&root).unwrap() {
-            Closure::Paths(paths) => {
-                for path in paths {
-                    paths_to_delete.remove(path);
-                }
-            }
-            Closure::Missing => todo!(),
+        for path in get_path(&closures, &root).unwrap() {
+            paths_to_delete.remove(path);
         }
     }
 
