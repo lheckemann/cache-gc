@@ -60,17 +60,17 @@ fn main() -> Result<(), serde_json::Error> {
     let mut deserializer = serde_json::Deserializer::from_slice(json.as_slice());
     let mut pathinfos: Vec<PathInfo> = Vec::deserialize(&mut deserializer)?;
     eprintln!("parsed info for {} paths", pathinfos.len());
-    let paths: HashMap<String, PathInfo> = pathinfos
+    let pathinfos: HashMap<String, PathInfo> = pathinfos
         .drain(..)
         .map(|pathinfo| (pathinfo.path.clone(), pathinfo))
         .collect();
     let nars: HashMap<String, u64> = pathinfos
-        .iter()
+        .values()
         .map(|pathinfo| (pathinfo.url.clone(), pathinfo.downloadSize))
         .collect();
 
     let mut closure_computation_state = ClosureComputationState {
-        todo: pathinfos.iter().map(|pi| (pi.path.clone(), pi)).collect(),
+        todo: pathinfos.values().map(|pi| (pi.path.clone(), pi)).collect(),
         results: HashMap::new(),
     };
     while !closure_computation_state.todo.is_empty() {
@@ -81,23 +81,29 @@ fn main() -> Result<(), serde_json::Error> {
             .expect("todo is supposed to be non-empty!")
             .clone();
         compute_closure(&mut closure_computation_state, key);
+        eprint!(
+            "\rComputed {}/{} closures",
+            closure_computation_state.results.len(),
+            pathinfos.len()
+        );
     }
+    eprintln!("");
     let closures = closure_computation_state.results;
 
     let cutoff_date = Utc::now() - Duration::days(10);
     let cutoff_timestamp = cutoff_date.timestamp() as u64;
     let roots_to_keep: HashSet<String> = pathinfos
-        .iter()
+        .values()
         .filter(|pathinfo| pathinfo.registrationTime > cutoff_timestamp)
         .map(|pathinfo| pathinfo.path.clone())
         .collect();
 
-    let mut paths_to_delete: HashSet<String> = paths.keys().cloned().collect();
+    let mut paths_to_delete: HashSet<String> = pathinfos.keys().cloned().collect();
     let mut nars_to_delete: HashMap<String, u64> = nars;
     for root in roots_to_keep {
         for path in closures.get(&root).unwrap() {
             paths_to_delete.remove(path);
-            nars_to_delete.remove(&paths.get(path).unwrap().url);
+            nars_to_delete.remove(&pathinfos.get(path).unwrap().url);
         }
     }
 
