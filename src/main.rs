@@ -8,12 +8,14 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[allow(non_snake_case)]
 pub struct PathInfo {
     pub path: String,
     pub references: HashSet<String>,
     pub registrationTime: u64,
+    pub downloadSize: u64,
+    pub url: String,
 }
 
 struct ClosureComputationState<'a> {
@@ -56,11 +58,15 @@ fn main() -> Result<(), serde_json::Error> {
         .read_to_end(&mut json)
         .unwrap();
     let mut deserializer = serde_json::Deserializer::from_slice(json.as_slice());
-    let pathinfos: Vec<PathInfo> = Vec::deserialize(&mut deserializer)?;
+    let mut pathinfos: Vec<PathInfo> = Vec::deserialize(&mut deserializer)?;
     eprintln!("parsed info for {} paths", pathinfos.len());
-    let paths: Vec<String> = pathinfos
+    let paths: HashMap<String, PathInfo> = pathinfos
+        .drain(..)
+        .map(|pathinfo| (pathinfo.path.clone(), pathinfo))
+        .collect();
+    let nars: HashMap<String, u64> = pathinfos
         .iter()
-        .map(|pathinfo| pathinfo.path.clone())
+        .map(|pathinfo| (pathinfo.url.clone(), pathinfo.downloadSize))
         .collect();
 
     let mut closure_computation_state = ClosureComputationState {
@@ -86,16 +92,21 @@ fn main() -> Result<(), serde_json::Error> {
         .map(|pathinfo| pathinfo.path.clone())
         .collect();
 
-    let mut paths_to_delete: HashSet<String> = paths.iter().cloned().collect();
+    let mut paths_to_delete: HashSet<String> = paths.keys().cloned().collect();
+    let mut nars_to_delete: HashMap<String, u64> = nars;
     for root in roots_to_keep {
         for path in closures.get(&root).unwrap() {
             paths_to_delete.remove(path);
+            nars_to_delete.remove(&paths.get(path).unwrap().url);
         }
     }
 
-    for path in paths_to_delete {
-        println!("{}", path);
-    }
+    println!(
+        "Will delete {} paths and {} nar files, totalling {} bytes.",
+        paths_to_delete.len(),
+        nars_to_delete.len(),
+        nars_to_delete.values().sum::<u64>()
+    );
 
     Ok(())
 }
