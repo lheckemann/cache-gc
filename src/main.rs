@@ -5,8 +5,8 @@ extern crate serde_json;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::Read;
+use std::fs::{File, OpenOptions};
+use std::io::{BufWriter, Read, Write};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[allow(non_snake_case)]
@@ -29,7 +29,11 @@ fn compute_closure<'a>(
 ) -> &'a HashSet<String> {
     let pathinfo = match state.todo.remove(&path) {
         Some(info) => info,
-        None => panic!("Could not find info for {}", path),
+        None => {
+            eprintln!("Missing path {}", path);
+            state.results.insert(path.clone(), HashSet::new());
+            return state.results.get(&path).unwrap();
+        }
     };
     let mut closure: HashSet<String> = HashSet::new();
     closure.insert(path.clone());
@@ -73,6 +77,7 @@ fn main() -> Result<(), serde_json::Error> {
         todo: pathinfos.values().map(|pi| (pi.path.clone(), pi)).collect(),
         results: HashMap::new(),
     };
+    let mut last_reported_progress: usize = 0;
     while !closure_computation_state.todo.is_empty() {
         let key = closure_computation_state
             .todo
@@ -81,16 +86,20 @@ fn main() -> Result<(), serde_json::Error> {
             .expect("todo is supposed to be non-empty!")
             .clone();
         compute_closure(&mut closure_computation_state, key);
-        eprint!(
-            "\rComputed {}/{} closures",
-            closure_computation_state.results.len(),
-            pathinfos.len()
-        );
+        let total_computed = closure_computation_state.results.len();
+        if total_computed > last_reported_progress + 20 {
+            eprint!(
+                "\rComputed {}/{} closures...  ",
+                total_computed,
+                pathinfos.len()
+            );
+            last_reported_progress = total_computed;
+        }
     }
     eprintln!("");
     let closures = closure_computation_state.results;
 
-    let cutoff_date = Utc::now() - Duration::days(10);
+    let cutoff_date = Utc::now() - Duration::days(100);
     let cutoff_timestamp = cutoff_date.timestamp() as u64;
     let roots_to_keep: HashSet<String> = pathinfos
         .values()
@@ -113,6 +122,27 @@ fn main() -> Result<(), serde_json::Error> {
         nars_to_delete.len(),
         nars_to_delete.values().sum::<u64>()
     );
+
+    let output_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open("/scratch/files-to-delete")
+        .unwrap();
+    let mut writer = BufWriter::new(output_file);
+    for path in paths_to_delete {
+        let mut hash = path
+            .clone()
+            .strip_prefix("/nix/store/")
+            .map(String::from)
+            .unwrap_or(path);
+        hash.truncate(32);
+        hash += ".narinfo\n";
+        writer.write(hash.as_bytes()).unwrap();
+    }
+    for nar in nars_to_delete.keys() {
+        writer.write(nar.as_bytes()).unwrap();
+        writer.write(&[b'\n']).unwrap();
+    }
 
     Ok(())
 }
