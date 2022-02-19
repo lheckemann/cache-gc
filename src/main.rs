@@ -9,6 +9,7 @@ use std::fs::File;
 use std::io::Read;
 
 #[derive(Serialize, Deserialize, Debug)]
+#[allow(non_snake_case)]
 pub struct PathInfo {
     pub path: String,
     pub references: HashSet<String>,
