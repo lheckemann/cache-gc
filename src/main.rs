@@ -99,7 +99,7 @@ fn main() -> Result<(), serde_json::Error> {
     eprintln!("");
     let closures = closure_computation_state.results;
 
-    let cutoff_date = Utc::now() - Duration::days(100);
+    let cutoff_date = Utc::now() - Duration::days(90);
     let cutoff_timestamp = cutoff_date.timestamp() as u64;
     let roots_to_keep: HashSet<String> = pathinfos
         .values()
@@ -108,7 +108,7 @@ fn main() -> Result<(), serde_json::Error> {
         .collect();
 
     let mut paths_to_delete: HashSet<String> = pathinfos.keys().cloned().collect();
-    let mut nars_to_delete: HashMap<String, u64> = nars;
+    let mut nars_to_delete: HashMap<String, u64> = nars.clone();
     for root in roots_to_keep {
         for path in closures.get(&root).unwrap() {
             paths_to_delete.remove(path);
@@ -117,10 +117,13 @@ fn main() -> Result<(), serde_json::Error> {
     }
 
     println!(
-        "Will delete {} paths and {} nar files, totalling {} bytes.",
+        "Will delete {}/{} paths and {}/{} nar files, totalling {}/{} bytes.",
         paths_to_delete.len(),
+        pathinfos.len(),
         nars_to_delete.len(),
-        nars_to_delete.values().sum::<u64>()
+        nars.len(),
+        nars_to_delete.values().sum::<u64>(),
+        nars.values().sum::<u64>(),
     );
 
     let output_file = OpenOptions::new()
