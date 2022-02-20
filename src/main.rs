@@ -57,6 +57,22 @@ fn compute_closure<'a>(
     state.results.get(&path).unwrap()
 }
 
+fn compute_all_closures<'a>(mut state: &'a mut ClosureComputationState) {
+    let mut last_reported_progress: usize = 0;
+    while let Some(key) = state.todo.keys().next().cloned() {
+        compute_closure(&mut state, key);
+        let total_computed = state.results.len();
+        if total_computed > last_reported_progress + 20 {
+            eprint!(
+                "\rComputed {}/{} closures...  ",
+                total_computed,
+                total_computed + state.todo.len()
+            );
+            last_reported_progress = total_computed;
+        }
+    }
+}
+
 fn main() -> Result<(), serde_json::Error> {
     let mut json: Vec<u8> = Vec::with_capacity(500 << 20);
     File::open("/scratch/store-info-with-registration-time.json")
@@ -79,26 +95,8 @@ fn main() -> Result<(), serde_json::Error> {
         todo: pathinfos.values().map(|pi| (pi.path.clone(), pi)).collect(),
         results: HashMap::new(),
     };
-    let mut last_reported_progress: usize = 0;
-    while !closure_computation_state.todo.is_empty() {
-        let key = closure_computation_state
-            .todo
-            .keys()
-            .next()
-            .expect("todo is supposed to be non-empty!")
-            .clone();
-        compute_closure(&mut closure_computation_state, key);
-        let total_computed = closure_computation_state.results.len();
-        if total_computed > last_reported_progress + 20 {
-            eprint!(
-                "\rComputed {}/{} closures...  ",
-                total_computed,
-                pathinfos.len()
-            );
-            last_reported_progress = total_computed;
-        }
-    }
     eprintln!("");
+    compute_all_closures(&mut closure_computation_state);
     let closures = closure_computation_state.results;
 
     let cutoff_date = Utc::now() - Duration::days(90);
