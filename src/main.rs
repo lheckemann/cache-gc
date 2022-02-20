@@ -1,7 +1,9 @@
+extern crate byte_unit;
 extern crate chrono;
 extern crate serde;
 extern crate serde_json;
 
+use byte_unit::Byte;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -108,7 +110,7 @@ fn main() -> Result<(), serde_json::Error> {
         .collect();
 
     let mut paths_to_delete: HashSet<String> = pathinfos.keys().cloned().collect();
-    let mut nars_to_delete: HashMap<String, u64> = nars.clone();
+    let mut nars_to_delete = nars.clone();
     for root in roots_to_keep {
         for path in closures.get(&root).unwrap() {
             paths_to_delete.remove(path);
@@ -117,13 +119,12 @@ fn main() -> Result<(), serde_json::Error> {
     }
 
     println!(
-        "Will delete {}/{} paths and {}/{} nar files, totalling {}/{} bytes.",
+        "Will delete {}/{} paths and {}/{} nar files, totalling {}.",
         paths_to_delete.len(),
         pathinfos.len(),
         nars_to_delete.len(),
         nars.len(),
-        nars_to_delete.values().sum::<u64>(),
-        nars.values().sum::<u64>(),
+        Byte::from_bytes(nars_to_delete.values().sum::<u64>()).get_appropriate_unit(true),
     );
 
     let output_file = OpenOptions::new()
