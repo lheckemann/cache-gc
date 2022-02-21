@@ -95,7 +95,19 @@ fn main() -> Result<(), serde_json::Error> {
     compute_all_closures(&mut closure_computation_state);
     let closures = closure_computation_state.results;
 
-    let cutoff_date = Utc::now() - Duration::days(90);
+    let days_to_keep = std::env::args()
+        .skip(1)
+        .next()
+        .as_ref()
+        .map(|arg| {
+            i64::from_str_radix(arg, 10).unwrap_or_else(|_| {
+                eprintln!("Warning: could not parse argument, using default of 90 days");
+                90
+            })
+        })
+        .filter(|n| *n > 0)
+        .unwrap_or(90);
+    let cutoff_date = Utc::now() - Duration::days(days_to_keep);
     let cutoff_timestamp = cutoff_date.timestamp() as u64;
     let roots_to_keep: HashSet<String> = pathinfos
         .values()
