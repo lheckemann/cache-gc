@@ -7,7 +7,6 @@ use byte_unit::Byte;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Read, Write};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -75,10 +74,7 @@ fn compute_all_closures<'a>(mut state: &'a mut ClosureComputationState) {
 
 fn main() -> Result<(), serde_json::Error> {
     let mut json: Vec<u8> = Vec::with_capacity(500 << 20);
-    File::open("/scratch/store-info-with-registration-time.json")
-        .unwrap()
-        .read_to_end(&mut json)
-        .unwrap();
+    std::io::stdin().read_to_end(&mut json).unwrap();
     let mut deserializer = serde_json::Deserializer::from_slice(json.as_slice());
     let mut pathinfos: Vec<PathInfo> = Vec::deserialize(&mut deserializer)?;
     eprintln!("parsed info for {} paths", pathinfos.len());
@@ -125,11 +121,7 @@ fn main() -> Result<(), serde_json::Error> {
         Byte::from_bytes(nars_to_delete.values().sum::<u64>()).get_appropriate_unit(true),
     );
 
-    let output_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open("/scratch/files-to-delete")
-        .unwrap();
+    let output_file = std::io::stdout();
     let mut writer = BufWriter::new(output_file);
     for path in paths_to_delete {
         let mut hash = path
