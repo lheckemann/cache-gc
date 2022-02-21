@@ -112,7 +112,7 @@ fn main() -> Result<(), serde_json::Error> {
         }
     }
 
-    println!(
+    eprintln!(
         "Will delete {}/{} paths and {}/{} nar files, totalling {}.",
         paths_to_delete.len(),
         pathinfos.len(),
