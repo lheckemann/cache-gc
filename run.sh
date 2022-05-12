@@ -45,7 +45,7 @@ done
 [[ -n "$cache_dir" ]] || usage
 
 paths_to_delete=$(
-    nix path-info --all --json --store file://"$cache_dir" |
+    nix path-info --all --json --store file://"$cache_dir" --option extra-experimental-features "nix-command" |
         jq -f "$libexec_dir/add-registration-times.jq" --slurpfile dates <(cd "$cache_dir"; echo *.narinfo | xargs stat -c '%Y %n' -- | jq -R) |
         gc "${gc_args[@]}"
 )
