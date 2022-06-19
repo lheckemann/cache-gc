@@ -1,4 +1,1 @@
-with import <nixpkgs> {};
-mkShell {
-  buildInputs = [ cargo rustfmt rustc ];
-}
+(import ./flake-compat.nix).shellNix.default
