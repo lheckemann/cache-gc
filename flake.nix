@@ -49,6 +49,7 @@
               The cache-gc package used for cleaning the cache.
             '';
             default = self.outputs.packages.${pkgs.system}.cache-gc;
+            defaultText = "<cache-gc flake>.packages.<system>.cache-gc";
           };
           days = mkOption {
             default = 90;
