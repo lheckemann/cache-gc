@@ -16,7 +16,7 @@ confirm() {
 [[ -r "$libexec_dir/add-registration-times.jq" ]] || error "Couldn't find registration time adder, are we installed correctly?"
 
 usage() {
-    error "Usage: $0 [--delete] <cache-dir>"
+    error "Usage: $0 [--days 90] [--delete] <cache-dir>"
 }
 delete=
 cache_dir=
