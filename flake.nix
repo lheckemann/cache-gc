@@ -39,13 +39,13 @@
           path = mkOption {
             type = types.str;
             example = "/var/lib/hydra/cache-gc";
-            description = ''
+            description = mdDoc ''
               Path containing the binary cache to clean up.
             '';
           };
           package = mkOption {
             type = types.package;
-            description = ''
+            description = mdDoc ''
               The cache-gc package used for cleaning the cache.
             '';
             default = self.outputs.packages.${pkgs.system}.cache-gc;
@@ -54,30 +54,29 @@
           days = mkOption {
             default = 90;
             type = types.ints.positive;
-            description = ''
-              Remove all paths that are older than the <literal>n</literal>
-              days and not referenced by paths newer than <literal>n</literal>
-              days with <literal>n</literal> being the value of this option.
+            description = mdDoc ''
+              Remove all paths that are older than the `n`
+              days and not referenced by paths newer than `n`
+              days with `n` being the value of this option.
             '';
           };
           frequency = mkOption {
             default = null;
             type = types.nullOr types.str;
             example = "daily";
-            description = ''
-              When not <literal>null</literal>, a timer is added which periodically triggers
+            description = mdDoc ''
+              When not `null`, a timer is added which periodically triggers
               the garbage collector. In that case, the option's value must represent
               the frequency of how often the service shuld be executed.
 
-              Further information can be found in <citerefentry><refentrytitle>systemd.time</refentrytitle>
-              <manvolnum>7</manvolnum></citerefentry>.
+              Further information can be found in {manpage}`systemd.time(7)`.
             '';
           };
           owningUser = mkOption {
             type = types.str;
             example = "hydra-queue-runner";
-            description = ''
-              User which owns the path <option>services.cache-gc.path</option>.
+            description = mdDoc ''
+              User which owns the path [](#opt-services.cache-gc.path).
             '';
           };
         };
