@@ -13,7 +13,7 @@ confirm() {
 }
 
 : "${libexec_dir:="$(dirname "$(readlink -f "$0")")/../libexec/cache-gc"}"
-[[ -r "$libexec_dir/add-registration-times.jq" ]] || error "Couldn't find registration time adder, are we installed correctly?"
+[[ -r "$libexec_dir/add-registration-times.py" ]] || error "Couldn't find registration time adder, are we installed correctly?"
 
 usage() {
     error "Usage: $0 [--days 90] [--delete] <cache-dir>"
@@ -46,7 +46,7 @@ done
 
 paths_to_delete=$(
     nix path-info --all --json --store file://"$cache_dir" --option extra-experimental-features "nix-command" |
-        jq -f "$libexec_dir/add-registration-times.jq" --slurpfile dates <(cd "$cache_dir"; echo *.narinfo | xargs stat -c '%Y %n' -- | jq -R) |
+        (cd "$cache_dir"; "$libexec_dir"/add-registration-times.py) |
         gc "${gc_args[@]}"
 )
 
