@@ -1,20 +1,20 @@
 {
   description = "Nix binary cache garbage collector";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-23.05;
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
 
   outputs = { self, nixpkgs }: let
     forAllSystems = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-linux"];
   in {
     overlays.default = final: prev: {
-      cache-gc = prev.callPackage ./package.nix { nix = final.nixVersions.nix_2_13; src = self; };
+      cache-gc = prev.callPackage ./package.nix { nix = final.lix; src = self; };
     };
 
     defaultPackage = forAllSystems (system: self.packages.${system}.cache-gc);
     packages = forAllSystems (system: let
       pkgs = nixpkgs.legacyPackages.${system};
     in rec {
-      cache-gc = pkgs.callPackage ./package.nix { nix = pkgs.nixVersions.nix_2_13; src = self; };
+      cache-gc = pkgs.callPackage ./package.nix { nix = pkgs.lix; src = self; };
       default = cache-gc;
     });
 
